@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hidden Gem Jogja — 13–15 Juni 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --sand: #f5efe6;
+    --bark: #3d2b1f;
+    --ocean: #1a6b72;
+    --coral: #e8633a;
+    --sage: #5a7a5e;
+    --gold: #c9972b;
+    --mist: #e8f0ef;
+    --ink: #1c1c1c;
+    --sidebar-w: 340px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--sand);
+    color: var(--ink);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--bark);
+    color: var(--sand);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 1000;
+    position: relative;
+  }
+
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    letter-spacing: 0.02em;
+  }
+
+  .header-title span {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .header-date {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ZONE FILTERS */
+  .zone-bar {
+    background: var(--bark);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 0 24px 12px;
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .zone-btn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    background: transparent;
+    color: rgba(255,255,255,0.6);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+
+  .zone-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  .zone-btn.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--bark);
+    font-weight: 600;
+  }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--sand);
+    border-right: 1px solid rgba(61,43,31,0.12);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-search {
+    padding: 16px 16px 8px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-search input {
+    width: 100%;
+    padding: 9px 14px;
+    border: 1.5px solid rgba(61,43,31,0.15);
+    border-radius: 8px;
+    background: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .sidebar-search input:focus { border-color: var(--ocean); }
+  .sidebar-search input::placeholder { color: #aaa; }
+
+  .sidebar-count {
+    padding: 6px 16px 8px;
+    font-size: 0.72rem;
+    color: #888;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .spot-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0 8px 16px;
+  }
+
+  .spot-list::-webkit-scrollbar { width: 4px; }
+  .spot-list::-webkit-scrollbar-track { background: transparent; }
+  .spot-list::-webkit-scrollbar-thumb { background: rgba(61,43,31,0.2); border-radius: 2px; }
+
+  /* ZONE GROUP */
+  .zone-group { margin-bottom: 4px; }
+
+  .zone-header {
+    padding: 10px 10px 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #999;
+    position: sticky;
+    top: 0;
+    background: var(--sand);
+    z-index: 1;
+  }
+
+  /* SPOT CARD */
+  .spot-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+    margin-bottom: 2px;
+  }
+
+  .spot-card:hover { background: rgba(61,43,31,0.06); transform: translateX(2px); }
+  .spot-card.active { background: rgba(26,107,114,0.1); }
+
+  .spot-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .spot-card-info { flex: 1; min-width: 0; }
+
+  .spot-card-name {
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .spot-card-note {
+    font-size: 0.72rem;
+    color: #888;
+    line-height: 1.4;
+    margin-top: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .spot-card-tag {
+    font-size: 0.64rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  /* MAP */
+  #map {
+    flex: 1;
+    z-index: 1;
+  }
+
+  /* LEAFLET POPUP */
+  .leaflet-popup-content-wrapper {
+    border-radius: 12px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18) !important;
+    border: none !important;
+    font-family: 'DM Sans', sans-serif !important;
+  }
+
+  .leaflet-popup-tip-container { display: none; }
+  .leaflet-popup-close-button { color: white !important; padding: 8px 10px !important; font-size: 16px !important; z-index: 10; }
+
+  .popup-header {
+    padding: 14px 16px 10px;
+    color: white;
+  }
+
+  .popup-emoji { font-size: 1.4rem; margin-bottom: 4px; }
+  .popup-name { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; line-height: 1.2; }
+  .popup-zone { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8; margin-top: 3px; }
+
+  .popup-body { padding: 12px 16px 14px; }
+  .popup-note { font-size: 0.8rem; color: #444; line-height: 1.5; }
+
+  .popup-gmaps {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    padding: 6px 12px;
+    background: var(--ocean);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .popup-gmaps:hover { opacity: 0.85; }
+
+  /* LEGEND */
+  .legend {
+    position: absolute;
+    bottom: 24px;
+    right: 16px;
+    background: white;
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    z-index: 500;
+    font-size: 0.72rem;
+  }
+
+  .legend-title {
+    font-weight: 600;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 8px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+    color: #444;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* NO RESULTS */
+  .no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: #aaa;
+    font-size: 0.85rem;
+  }
+
+  /* MOBILE TOGGLE */
+  .mobile-toggle {
+    display: none;
+  }
+
+  @media (max-width: 700px) {
+    :root { --sidebar-w: 100vw; }
+    .main { flex-direction: column-reverse; }
+    .sidebar { width: 100%; height: 45vh; border-right: none; border-top: 1px solid rgba(61,43,31,0.12); }
+    #map { height: 55vh; }
+    .legend { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">Hidden Gem <span>Jogja</span></div>
+    <div class="header-date">13 – 15 Juni 2026 &nbsp;·&nbsp; 30 Destinasi</div>
+  </div>
+  <div style="font-size:1.6rem">🗺️</div>
+</header>
+
+<div class="zone-bar">
+  <button class="zone-btn active" onclick="filterZone('all')">Semua</button>
+  <button class="zone-btn" onclick="filterZone('kota')">🏙️ Jogja Kota</button>
+  <button class="zone-btn" onclick="filterZone('gunungkidul')">🏖️ Gunungkidul</button>
+  <button class="zone-btn" onclick="filterZone('utara')">⛰️ Jogja Utara</button>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-search">
+      <input type="text" id="searchInput" placeholder="Cari nama tempat..." oninput="filterSearch()">
+    </div>
+    <div class="sidebar-count" id="spotCount">30 destinasi</div>
+    <div class="spot-list" id="spotList"></div>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="legend" id="legend">
+    <div class="legend-title">Kategori</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1a6b72"></div>🏖️ Pantai</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e8633a"></div>🌊 Beach Club</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#5a7a5e"></div>🌿 Wisata Alam</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#c9972b"></div>🍽️ Kuliner</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7b5ea7"></div>☕ Kafe</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8b6347"></div>🏛️ Wisata Unik</div>
+  </div>
+</div>
+
+<script>
+const SPOTS = [
+  // ─── JOGJA KOTA ───
+  { id:1, zone:'kota', zoneName:'Jogja Kota', name:'Sate Ratu', emoji:'🍢', cat:'kuliner', lat:-7.7359, lng:110.3993, note:'Datang jam 11 pagi atau sebelum rush jam 18–19. Tutup Minggu.', gmaps:'https://maps.google.com/?cid=15705224856978098484' },
+  { id:2, zone:'kota', zoneName:'Jogja Kota', name:'Gudeg Pawon', emoji:'🌿', cat:'kuliner', lat:-7.8057, lng:110.3902, note:'Buka mulai 17.30. Makan langsung di dapur pawon arang. Antri kalau datang malam.', gmaps:'https://maps.google.com/?cid=17080842026430651453' },
+  { id:3, zone:'kota', zoneName:'Jogja Kota', name:'Oseng Mercon Bu Narti', emoji:'🌶️', cat:'kuliner', lat:-7.8013, lng:110.3574, note:'Buka jam 16.00. Dimasak di tungku arang, pedas ekstrem. Dekat Malioboro.', gmaps:'https://maps.google.com/?cid=854756839196135504' },
+  { id:4, zone:'kota', zoneName:'Jogja Kota', name:'Gudeg Manggar Bu Tjondro', emoji:'🌴', cat:'kuliner', lat:-7.8150, lng:110.3559, note:'Varian langka: pakai putik bunga kelapa bukan nangka. Buka 17.00–22.30. Tutup Senin.', gmaps:'https://maps.google.com/?cid=9715500365597751470' },
+  { id:5, zone:'kota', zoneName:'Jogja Kota', name:'Warung Senja', emoji:'🌾', cat:'kuliner', lat:-7.8157, lng:110.4167, note:'View sawah, kid-friendly, angkringan next level. Sunset di sini bagus banget.', gmaps:'https://maps.google.com/?cid=17006756105162518636' },
+  { id:6, zone:'kota', zoneName:'Jogja Kota', name:'Mangut Lele Mbah Marto', emoji:'🐟', cat:'kuliner', lat:-7.8542, lng:110.3530, note:'Ambil lauk langsung dari dapur pawon kayu bakar. Buka 10.00–20.00.', gmaps:'https://maps.google.com/?cid=12569089015855404591' },
+  { id:7, zone:'kota', zoneName:'Jogja Kota', name:'Sate Klatak Pak Bari', emoji:'🐐', cat:'kuliner', lat:-7.8707, lng:110.3921, note:'Ditusuk jeruji besi, bukan bambu. Buka mulai 18.30 sampai tengah malam.', gmaps:'https://maps.google.com/?cid=9803394325523915180' },
+
+  // ─── GUNUNGKIDUL ───
+  { id:8, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Pringjono', emoji:'🏖️', cat:'pantai', lat:-8.1179, lng:110.4995, note:'Paling terpencil sisi barat GK. Jarang dikunjungi bahkan hari libur. Motor recommended.', gmaps:'https://maps.google.com/?cid=6511927136665245152' },
+  { id:9, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Torohudan', emoji:'🏖️', cat:'pantai', lat:-8.1226, lng:110.5163, note:'Jalan kaki 10–15 mnt lewat ladang jagung. Favorit pemancing, bukan pantai wisata.', gmaps:'https://maps.google.com/?cid=16319700599349474149' },
+  { id:10, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Ngrawah', emoji:'🏖️', cat:'pantai', lat:-8.1251, lng:110.5202, note:'Jalan kaki 800m dari parkir. Rating 4.7 ⭐ — private beach vibes.', gmaps:'https://maps.google.com/?cid=14188308332094588570' },
+  { id:11, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Midodaren', emoji:'🏖️', cat:'pantai', lat:-8.1256, lng:110.5216, note:'Nama Jawa: Bidadari. Sunset terbaik, sinyal susah.', gmaps:'https://maps.google.com/?cid=8001665443649624778' },
+  { id:12, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Peyuyon', emoji:'🏖️', cat:'pantai', lat:-8.1276, lng:110.5240, note:'1 area bisa akses 3 pantai sekaligus. Diapit dua tebing besar.', gmaps:'https://maps.google.com/?cid=8051301586104959427' },
+  { id:13, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Kayu Arum', emoji:'🏖️', cat:'pantai', lat:-8.1296, lng:110.5342, note:'Butuh guide lokal Rp70k. Rating 4.7 ⭐ — beneran private beach.', gmaps:'https://maps.google.com/?cid=5770974858230290080' },
+  { id:14, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Sembodro', emoji:'🏄', cat:'beachclub', lat:-8.1446, lng:110.5999, note:'Ada beach bar & surf. Tutup Rabu. Sepi dibanding Indrayanti & Krakal.', gmaps:'https://maps.google.com/?cid=7377226230661120610' },
+  { id:15, zone:'gunungkidul', zoneName:'Gunungkidul', name:'De Flava Beachfront', emoji:'🌊', cat:'beachclub', lat:-8.1450, lng:110.6027, note:'Beach club sunset vibes. Datang Selasa–Jumat biar sepi. Min. order Rp110k/orang.', gmaps:'https://maps.google.com/?cid=10170447984370300952' },
+  { id:16, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Siung', emoji:'🏖️', cat:'pantai', lat:-8.1818, lng:110.6832, note:'Spot panjat tebing + jembatan karang. Bus besar tidak bisa masuk. 77 km dari Jogja.', gmaps:'https://maps.google.com/?cid=6232826928217706058' },
+  { id:17, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Watu Lawang', emoji:'🪨', cat:'pantai', lat:-8.1957, lng:110.7070, note:'Formasi batu karang dramatis. Akses hati-hati, motor lebih mudah.', gmaps:'https://maps.google.com/?cid=16605614753338378437' },
+  { id:18, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Jungwok Blue Ocean', emoji:'🌊', cat:'beachclub', lat:-8.1967, lng:110.7135, note:'Santorini-nya Jogja. Buka 08.00–20.00. Lebih tenang dari De Flava.', gmaps:'https://maps.google.com/?cid=13036718538010926263' },
+  { id:19, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Sedahan', emoji:'🏖️', cat:'pantai', lat:-8.1979, lng:110.7209, note:'Diapit Tebing Sinden & Sudan. Kadang ada lumba-lumba. Trekking 1.5 km.', gmaps:'https://maps.google.com/?cid=2504684244446664778' },
+  { id:20, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Srakung', emoji:'🏖️', cat:'pantai', lat:-8.1919, lng:110.7873, note:'Mungkin pantai paling sepi di list ini. Diapit dua tebing hijau. Camping-friendly.', gmaps:'https://maps.google.com/?cid=7209061451418937921' },
+  { id:21, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Pantai Krokoh', emoji:'🏖️', cat:'pantai', lat:-8.2016, lng:110.8295, note:'Level paling terpencil. 93 km dari Jogja, ujung timur GK. Sunset luar biasa.', gmaps:'https://maps.google.com/?cid=7136430943548296575' },
+  { id:22, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Paleo Stone Age', emoji:'🦕', cat:'unik', lat:-7.9933, lng:110.7364, note:'Resto + penginapan di dalam gua alami. Buka 08.00–17.00.', gmaps:'https://maps.google.com/?cid=7396821700974945886' },
+  { id:23, zone:'gunungkidul', zoneName:'Gunungkidul', name:'Goa Cerme', emoji:'🕳️', cat:'unik', lat:-7.9793, lng:110.3798, note:'Goa 1.2 km, butuh guide (Rp50k). Perbatasan Bantul–GK. Buka 07.00–18.00.', gmaps:'https://maps.google.com/?cid=4891839819266807733' },
+
+  // ─── JOGJA UTARA ───
+  { id:24, zone:'utara', zoneName:'Jogja Utara', name:'Bukit Klangon', emoji:'🌋', cat:'alam', lat:-7.5769, lng:110.4548, note:'View Merapi jarak dekat. Sunrise spot. Lebih sepi dari Kaliurang. Buka 24 jam.', gmaps:'https://maps.google.com/?cid=280105609562724901' },
+  { id:25, zone:'utara', zoneName:'Jogja Utara', name:'Puncak Widosari', emoji:'⛰️', cat:'alam', lat:-7.6583, lng:110.1488, note:'Raja Ampat mini-nya Jogja. Tiket Rp5k. Buka 06.00–18.00.', gmaps:'https://maps.google.com/?cid=17599801403487738656' },
+  { id:26, zone:'utara', zoneName:'Jogja Utara', name:'Puncak Moyeng', emoji:'🌄', cat:'alam', lat:-7.7505, lng:110.1786, note:'Sunrise spot favorit di Perbukitan Menoreh. View lautan awan.', gmaps:'https://maps.google.com/?cid=7867166590133144890' },
+  { id:27, zone:'utara', zoneName:'Jogja Utara', name:'Curug Sidoharjo', emoji:'💧', cat:'alam', lat:-7.6700, lng:110.2020, note:'Air terjun 75 meter, masih alami. Trekking 10 mnt dari parkir. Gratis masuk.', gmaps:'https://maps.google.com/?cid=15896767482943298529' },
+  { id:28, zone:'utara', zoneName:'Jogja Utara', name:'Hutan Pinus Kalilo', emoji:'🌲', cat:'alam', lat:-7.7517, lng:110.1198, note:'Alternatif Mangunan yang jauh lebih sepi. Ada glamping. Buka 08.00–17.00.', gmaps:'https://maps.google.com/?cid=16505678376903721985' },
+  { id:29, zone:'utara', zoneName:'Jogja Utara', name:'Rawuh Coffee', emoji:'☕', cat:'kafe', lat:-7.7067, lng:110.4399, note:'Kafe antik Jawa + taman sawah. Buka 06.30. Bukan kafe Instagram biasa.', gmaps:'https://maps.google.com/?cid=6863892984403635799' },
+];
+
+const CAT_COLOR = {
+  pantai:   { bg:'#1a6b72', light:'rgba(26,107,114,0.1)' },
+  beachclub:{ bg:'#e8633a', light:'rgba(232,99,58,0.1)' },
+  alam:     { bg:'#5a7a5e', light:'rgba(90,122,94,0.1)' },
+  kuliner:  { bg:'#c9972b', light:'rgba(201,151,43,0.1)' },
+  kafe:     { bg:'#7b5ea7', light:'rgba(123,94,167,0.1)' },
+  unik:     { bg:'#8b6347', light:'rgba(139,99,71,0.1)' },
+};
+
+const ZONE_LABEL = {
+  kota: '🏙️ Jogja Kota',
+  gunungkidul: '🏖️ Gunungkidul',
+  utara: '⛰️ Jogja Utara',
+};
+
+let activeZone = 'all';
+let searchQuery = '';
+let activeMarker = null;
+let markers = {};
+let map;
+
+// Init map
+window.addEventListener('DOMContentLoaded', () => {
+  map = L.map('map', {
+    center: [-8.0, 110.5],
+    zoom: 9,
+    zoomControl: true,
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  SPOTS.forEach(spot => {
+    const color = CAT_COLOR[spot.cat]?.bg || '#666';
+
+    const icon = L.divIcon({
+      html: `<div style="
+        width:36px;height:36px;border-radius:50%;
+        background:${color};
+        display:flex;align-items:center;justify-content:center;
+        font-size:16px;
+        box-shadow:0 2px 8px rgba(0,0,0,0.3);
+        border:2.5px solid white;
+        cursor:pointer;
+        transition:transform 0.15s;
+      ">${spot.emoji}</div>`,
+      className: '',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -20],
+    });
+
+    const marker = L.marker([spot.lat, spot.lng], { icon })
+      .addTo(map)
+      .bindPopup(buildPopup(spot), { maxWidth: 260, minWidth: 240 });
+
+    marker.on('click', () => selectSpot(spot.id));
+    markers[spot.id] = marker;
+  });
+
+  renderSidebar();
+});
+
+function buildPopup(spot) {
+  const color = CAT_COLOR[spot.cat]?.bg || '#666';
+  return `
+    <div class="popup-header" style="background:${color}">
+      <div class="popup-emoji">${spot.emoji}</div>
+      <div class="popup-name">${spot.name}</div>
+      <div class="popup-zone">${ZONE_LABEL[spot.zone]}</div>
+    </div>
+    <div class="popup-body">
+      <div class="popup-note">${spot.note}</div>
+      <a class="popup-gmaps" href="${spot.gmaps}" target="_blank">
+        📍 Buka di Google Maps
+      </a>
+    </div>
+  `;
+}
+
+function getFiltered() {
+  return SPOTS.filter(s => {
+    const zoneOk = activeZone === 'all' || s.zone === activeZone;
+    const searchOk = !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return zoneOk && searchOk;
+  });
+}
+
+function renderSidebar() {
+  const filtered = getFiltered();
+  const list = document.getElementById('spotList');
+  const count = document.getElementById('spotCount');
+
+  count.textContent = `${filtered.length} destinasi`;
+
+  // Update marker visibility
+  SPOTS.forEach(s => {
+    const el = markers[s.id]?.getElement();
+    if (el) el.style.opacity = filtered.includes(s) ? '1' : '0.15';
+  });
+
+  // Group by zone
+  const groups = {};
+  filtered.forEach(s => {
+    if (!groups[s.zone]) groups[s.zone] = [];
+    groups[s.zone].push(s);
+  });
+
+  const zoneOrder = ['kota','gunungkidul','utara'];
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="no-results">🔍 Tidak ada hasil untuk "<strong>${searchQuery}</strong>"</div>`;
+    return;
+  }
+
+  let html = '';
+  zoneOrder.forEach(zone => {
+    if (!groups[zone]) return;
+    html += `<div class="zone-group">
+      <div class="zone-header">${ZONE_LABEL[zone]}</div>`;
+    groups[zone].forEach(spot => {
+      const color = CAT_COLOR[spot.cat]?.bg || '#666';
+      const light = CAT_COLOR[spot.cat]?.light || '#eee';
+      html += `
+        <div class="spot-card" id="card-${spot.id}" onclick="selectSpot(${spot.id})">
+          <div class="spot-icon" style="background:${light}">${spot.emoji}</div>
+          <div class="spot-card-info">
+            <div class="spot-card-name">${spot.name}</div>
+            <div class="spot-card-note">${spot.note}</div>
+          </div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  list.innerHTML = html;
+}
+
+function selectSpot(id) {
+  const spot = SPOTS.find(s => s.id === id);
+  if (!spot) return;
+
+  // Deactivate previous card
+  document.querySelectorAll('.spot-card').forEach(el => el.classList.remove('active'));
+  const card = document.getElementById(`card-${id}`);
+  if (card) {
+    card.classList.add('active');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Fly to marker & open popup
+  map.flyTo([spot.lat, spot.lng], 14, { duration: 0.8 });
+  setTimeout(() => markers[id]?.openPopup(), 600);
+}
+
+function filterZone(zone) {
+  activeZone = zone;
+  document.querySelectorAll('.zone-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+
+  // Fit map to zone
+  const filtered = getFiltered();
+  if (filtered.length > 0) {
+    const bounds = L.latLngBounds(filtered.map(s => [s.lat, s.lng]));
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }
+
+  renderSidebar();
+}
+
+function filterSearch() {
+  searchQuery = document.getElementById('searchInput').value;
+  renderSidebar();
+}
+</script>
+</body>
+</html>
